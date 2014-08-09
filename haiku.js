@@ -6,41 +6,114 @@ var wordInfo = function wordInfo() {
 	//each sub_array contains an arrays of the words, followed by the emphasis for each syllable (ex: ["tutor", 1, 0])
 	
 	var all_words = [];
+	var search_words = []; //array that will be used to categorize words by starting letter
 
     this.feed = function feed(line) {
-        var word1 = line.split("  ")[0];
+        var word1 = line.split("  ")[0]; //sets word1 equal to the actual word
+        
+        //sylls equals an array of the phonemes listed for word1 that start a new syllable
         var sylls = line.split(" ").slice(2).filter(function(str) {
-                if(!isNaN(str[str.length-1])) {
-                        return true;
-                } else {
-                        return false;
-                }
-        	});
-	        var obj1 = [word1];
-	        var obj2 = obj1.concat(sylls.map(function(str) { return Number(str[str.length-1]) }));
-			var num_sylls = obj2.length-1;
-			while(all_words.length<num_sylls) {
-				all_words.push([]);	
+            if(!isNaN(str[str.length-1])) {
+                    return true;
+            } else {
+                    return false;
+            }
+    	});
+
+    	//creates obj2, and array with the word as its first element, and the numerical emphasis for each syllable as the following elements
+        //ex: ['tutor', 1, 0]
+        var arr_punct = [word1];
+		var arr_no_punct = [word1.split("").filter(function(char) {
+    		if((char.charCodeAt(0) >=65) && (char.charCodeAt(0) <=90)) {
+    			return true;
+    		} else {
+    			return false;
+    		}
+    	}).join("")];
+
+    	var arr_sylls = sylls.map(function(str) { return Number(str[str.length-1]) });
+
+		arr_punct = arr_punct.concat(arr_sylls);
+		arr_no_punct = arr_no_punct.concat(arr_sylls);
+
+        //adds empty arrays as elements of all_words to ensure that there is an element to store words of all syllable lengths
+		var num_sylls = arr_punct.length-1;
+		while(all_words.length<num_sylls) {
+			all_words.push([]);	
+		}
+		for(var i = 1; i<=26;i++) search_words.push([]);
+	    if(num_sylls>0) all_words[num_sylls-1].push(arr_punct); //only adds words to all_words if they have at least one syllable listed
+    	i=-1;
+    	if (arr_punct[0].length>0) i = arr_punct[0][0].toLowerCase().charCodeAt(0) - 97;
+    	
+    	if((i>=0) && (i<=25)) search_words[i].push([arr_no_punct[0], arr_no_punct.length-1]);
+    }
+
+    this.searchHaiku = function searchHaiku(search_phrases) {
+    	var syll_count = [5, 7, 5];
+    	var syll_index = 0;
+    	var haikus = [];
+    	var i=0;
+    	while(i<search_phrases.length) {
+    		var phrase = search_phrases[i].split(" ").filter(function(item) {
+    			if(item==="") {
+    				return false;
+    			} else {
+    				return true;
+    			}
+    		});
+    		var i2=0;
+    		var sum=0;
+    		while((i2<phrase.length) && (sum <= syll_count[syll_index])) {
+    			var search_col = search_words[phrase[i2][0].charCodeAt(0)-65]; //search_col equals column of search_words that the current word would be found in
+    			var i3=0;
+    			var found = false;
+    			while((found===false) && (i3<search_col.length)) {
+    				if(search_col[i3][0]===phrase[i2]) {
+    					sum+=search_col[i3][1];
+    					found = true;
+    				}
+    				i3++;
+    			}
+    			if(found===false) {
+    				i2=1000;
+    				sum=0;
+    			} else {
+    				i2++;
+    			}
+    			found = false;
+    		}
+    		if((sum===syll_count[syll_index]) && (syll_index===2)) {
+    			syll_index = 0;
+    			haikus.push(i-2);
 			}
-	    if(num_sylls>0) all_words[num_sylls-1].push(obj2);
+			else if (sum===syll_count[syll_index]) {
+    			syll_index++;
+    		} else {
+    			syll_index = 0;
+    		}
+    		i++;
+    	}
+    	return haikus;
     }
-
-    var spew = function spew(num_sylls) {
-        var spot = Math.floor(Math.random() * all_words[num_sylls].length);
-		return all_words[num_sylls][spot][0];
-    }
-
+    //iterates through the syllable counts in the 2-dimensional array 'format'
+    //and adds randomly selected words with the proper syllable count to the end of string variable 'haiku'
 	this.writeHaiku = function writeHaiku(format) {
 		var haiku = "";
 		for(var i=0; i<format.length; i++) {
 			for(var i2=0; i2<format[i].length; i2++) {
-				haiku += spew(format[i][i2]-1);
+				var num_sylls = format[i][i2]-1;
+				var spot = Math.floor(Math.random() * all_words[num_sylls].length);
+				haiku += all_words[num_sylls][spot][0];
 				if(i2<format[i].length-1) haiku += " ";
 			}
 			if(i<format.length-1) haiku += "\n";
 		}
 		return haiku;
 	}
+
+	//iterates through 'format' array, checks to make sure that 10 syllables are specified
+	//adds words returned from function 'spewIambic' to the end of string variable 'str'
 	this.writeIambic = function writeIambic(format) {
 		var str="";
 		var syll_count = 0;
@@ -93,7 +166,6 @@ var wordInfo = function wordInfo() {
 			word_arr = word_choices[count];
 			count_check--;
 		} 
-		console.log(word_arr);
 		if(count_check===0) {
 			return ["null", 0];
 		} else {
@@ -132,6 +204,43 @@ fs.readFile('cmudict.txt', function(err, data) {
 		[2, 2, 2, 1],
 		[1, 1, 1, 1, 1]];
 	console.log("\nHaiku:\n\n" + dictionary.writeHaiku(format));
-	format = [10];
+	format = [1, 8, 1];
 	console.log("\nIambic Pentameter:\n\n" + dictionary.writeIambic(format));
+
+	var book = [];
+	fs.readFile('macbeth.txt', function(err, data) {
+		if(err) {
+			return console.log(err);
+		}
+		var text = data.toString().split("");
+		var sentences = [];
+		var no_punct_sents = [];
+		var cur_sentence = "";
+		for (var i=0; i<text.length; i++) {
+			var char1 = text[i].toUpperCase();
+			if (((char1 === ".") || (char1 === "?") || (char1 === "!") || (char1 === ";") || (char1 === ":")) && ((text[i+1] === " ") || (text[i+1] === "\n") || (text[i+1] === "\r") || (i===text.length - 1))) {
+				if(cur_sentence!=="") {
+					sentences.push(cur_sentence + char1);
+					no_punct_sents.push(cur_sentence);
+					cur_sentence = "";
+				}
+			}
+			else if (((char1 === "\n") || (char1 === "\r")) && ((text[i+1]!=="\r") && (text[i+1]!=="\n")) && (cur_sentence!=="")) {
+				cur_sentence += " ";
+			}
+			else if(((char1.charCodeAt(0)>=65) && (char1.charCodeAt(0)<=90)) || ((char1===" ") && (cur_sentence!==""))) {
+				cur_sentence += char1;
+			}
+		}
+		var haikus = dictionary.searchHaiku(no_punct_sents);
+		for(i=0;i<haikus.length;i++) {
+			console.log("\nHaiku #" + (i+1)+ ":\n\n" + sentences[haikus[i]] + "\n" + sentences[haikus[i]+1] + "\n" + sentences[haikus[i]+2] + "\n");
+		}
+		
+	});
+
+	//search words in sentences in dictionary, function must terminate if a word isn't found
+	//function must also terminate once the proper number of syllables is exceeded
+	//should output a version of the sentence with punctuation
+	//need to change so that sentences are also split by ! ? : ; characters and newline characters are removed
 });
