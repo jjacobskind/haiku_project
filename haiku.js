@@ -209,8 +209,7 @@ var wordInfo = function wordInfo() {
 	}
 }
 
-var dictionary = new wordInfo();
-
+//reads in dictionary file and calls functions that can't run until file is fully loaded
 fs.readFile('cmudict.txt', function(err, data) {
 	if(err) {
 		return console.log(err);
@@ -219,6 +218,12 @@ fs.readFile('cmudict.txt', function(err, data) {
 	lines.forEach(function(line) {
 		dictionary.feed(line);
 	});
+	writePoetry();
+	bookText();
+});
+
+//generates a haiku and an iambic pentameter that meet the syllable requirements specified in "format" array
+var writePoetry = function() {
 	var format = [
 		[1, 4],
 		[2, 2, 2, 1],
@@ -226,67 +231,75 @@ fs.readFile('cmudict.txt', function(err, data) {
 	console.log("\nHaiku:\n\n" + dictionary.writeHaiku(format));
 	format = [1, 8, 1];
 	console.log("\nIambic Pentameter:\n\n" + dictionary.writeIambic(format));
+}
 
-	var book = [];
+//reads in text file and then calls haikuSearch
+var bookText = function bookText() {
 	fs.readFile('macbeth.txt', function(err, data) {
 		if(err) {
 			return console.log(err);
 		}
-		var text = data.toString().split("");
-		var sentences = [];
-		var no_punct_sents = [];
-		var cur_sentence = "";
-		var cur_sent_no_punct = "";
-
-		//cycles through text characters, splitting phrases when it finds a (./!/?/:/;), or multiple newline characters
-		//array "sentences" is created for output purposes; contains all phrases with all punctuation included
-		//array "no_punct_sents" is created for searching purposes; contains all phrases with punctuation removed
-		//neither array contains newline characters; single newline characters in the middle of a phrase are converted into single spaces
-
-		for (var i=0; i<text.length; i++) {
-			var char1 = text[i].toUpperCase();
-			if(i<text.length-1) {
-				var next_char = text[i+1].toUpperCase();
-			} else {
-					next_char = undefined;
-			}
-
-			//checks for phrase-ending punctuation
-			if (((char1 === ".") || (char1 === "?") || (char1 === "!") || (char1 === ";") || (char1 === ":") || (char1 === "\n") || (char1 === "\r")) && ((next_char === " ") || (next_char === "\n") || (next_char === "\r") || (i===text.length - 1))) {
-				if(cur_sent_no_punct!=="") {
-					sentences.push(cur_sentence + char1);
-					no_punct_sents.push(cur_sent_no_punct);
-					cur_sentence = "";
-					cur_sent_no_punct = "";
-				}
-			}
-			//replaces single newline and carriage return characters with a single space
-			else if (((char1 === "\n") || (char1 === "\r")) && ((next_char!=="\r") && (next_char!=="\n")) && (cur_sent_no_punct!=="")) {
-				cur_sentence += " ";
-				cur_sent_no_punct += " ";
-			}
-			//adds alphabetic characters to current phrase variables
-			else if((char1.charCodeAt(0)>=65) && (char1.charCodeAt(0)<=90)) {
-				cur_sentence += char1;
-				cur_sent_no_punct += char1;
-			}
-			//only adds spaces to the phrase if they are not at the beginning of the phrase, or if they are not followed by more spaces or newline/carriage return characters
-			else if((char1===" ") && (cur_sent_no_punct!=="") && (next_char!=="\n") && (next_char!=="\r")) {
-				cur_sentence += char1;
-				if(cur_sent_no_punct[cur_sent_no_punct.length-1]!==" ") cur_sent_no_punct += char1;
-			} 
-			//adds any character that isn't a newline/carriage return or unnecessary space to punctuated phrase only
-			else if ((char1!=="\n") && (char1!=="\r") && (char1!==" ")) {
-				cur_sentence+=char1;
-			}
-
-		}
-
-		//array "haikus" contains the index number of the first phrase of each haiku in "no_punct_sents" (which is the same for "sentences")
-		var haikus = dictionary.searchHaiku(no_punct_sents);
-		for(i=0;i<haikus.length;i++) {
-			console.log("\nHaiku #" + (i+1)+ ":\n\n" + sentences[haikus[i]] + "\n" + sentences[haikus[i]+1] + "\n" + sentences[haikus[i]+2] + "\n");
-		}
-		
+		haikuSearch(data);
 	});
-});
+}
+
+//splits text file into phrases, searches phrases for 5-7-5 syllable patterns, and outputs all haikus to the console
+var haikuSearch = function(data) {
+	var text = data.toString().split("");
+	var sentences = [];
+	var no_punct_sents = [];
+	var cur_sentence = "";
+	var cur_sent_no_punct = "";
+
+	//cycles through text characters, splitting phrases when it finds a (./!/?/:/;), or multiple newline characters
+	//array "sentences" is created for output purposes; contains all phrases with all punctuation included
+	//array "no_punct_sents" is created for searching purposes; contains all phrases with punctuation removed
+	//neither array contains newline characters; single newline characters in the middle of a phrase are converted into single spaces
+
+	for (var i=0; i<text.length; i++) {
+		var char1 = text[i].toUpperCase();
+		if(i<text.length-1) {
+			var next_char = text[i+1].toUpperCase();
+		} else {
+				next_char = undefined;
+		}
+
+		//checks for phrase-ending punctuation
+		if (((char1 === ".") || (char1 === "?") || (char1 === "!") || (char1 === ";") || (char1 === ":") || (char1 === "\n") || (char1 === "\r")) && ((next_char === " ") || (next_char === "\n") || (next_char === "\r") || (i===text.length - 1))) {
+			if(cur_sent_no_punct!=="") {
+				sentences.push(cur_sentence + char1);
+				no_punct_sents.push(cur_sent_no_punct);
+				cur_sentence = "";
+				cur_sent_no_punct = "";
+			}
+		}
+		//replaces single newline and carriage return characters with a single space
+		else if (((char1 === "\n") || (char1 === "\r")) && ((next_char!=="\r") && (next_char!=="\n")) && (cur_sent_no_punct!=="")) {
+			cur_sentence += " ";
+			cur_sent_no_punct += " ";
+		}
+		//adds alphabetic characters to current phrase variables
+		else if((char1.charCodeAt(0)>=65) && (char1.charCodeAt(0)<=90)) {
+			cur_sentence += char1;
+			cur_sent_no_punct += char1;
+		}
+		//only adds spaces to the phrase if they are not at the beginning of the phrase, or if they are not followed by more spaces or newline/carriage return characters
+		else if((char1===" ") && (cur_sent_no_punct!=="") && (next_char!=="\n") && (next_char!=="\r")) {
+			cur_sentence += char1;
+			if(cur_sent_no_punct[cur_sent_no_punct.length-1]!==" ") cur_sent_no_punct += char1;
+		} 
+		//adds any character that isn't a newline/carriage return or unnecessary space to punctuated phrase only
+		else if ((char1!=="\n") && (char1!=="\r") && (char1!==" ")) {
+			cur_sentence+=char1;
+		}
+
+	}
+
+	//array "haikus" contains the index number of the first phrase of each haiku in "no_punct_sents" (which is the same for "sentences")
+	var haikus = dictionary.searchHaiku(no_punct_sents);
+	for(i=0;i<haikus.length;i++) {
+		console.log("\nHaiku #" + (i+1)+ ":\n\n" + sentences[haikus[i]] + "\n" + sentences[haikus[i]+1] + "\n" + sentences[haikus[i]+2] + "\n");
+	}
+}
+
+var dictionary = new wordInfo();
